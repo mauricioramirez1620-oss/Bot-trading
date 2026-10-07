@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ApexTrader AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-gray-200 font-sans min-h-screen flex flex-col p-2 space-y-3">
+
+  <!-- Header -->
+  <header class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex justify-between items-center">
+    <div class="flex items-center space-x-2">
+      <i class="fa-solid fa-brain text-purple-500 text-lg"></i>
+      <h1 class="font-bold text-sm text-white">ApexTrader <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-mono">AI v2.5</span></h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="flex bg-black/60 p-1 rounded-lg border border-slate-800">
+        <button id="modeDemoBtn" type="button" class="px-2.5 py-1 rounded text-[10px] font-bold bg-blue-600 text-white">DEMO</button>
+        <button id="modeRealBtn" type="button" class="px-2.5 py-1 rounded text-[10px] font-bold text-gray-400">REAL</button>
+      </div>
+      <span id="statusBadge" class="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-1 rounded border border-red-500/30">DETENIDO</span>
+    </div>
+  </header>
+
+  <!-- Selector de Estrategia -->
+  <section class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex justify-between items-center">
+    <span class="text-[10px] font-bold uppercase text-gray-400"><i class="fa-solid fa-sliders text-purple-400"></i> Estrategia Activa</span>
+    <select id="strategySelect" class="bg-black/60 text-white text-xs font-bold font-mono px-3 py-1.5 rounded-lg border border-slate-700 outline-none">
+      <option value="SMC">Smart Money Concepts (SMC)</option>
+      <option value="CRT">Candle Range Theory (CRT)</option>
+    </select>
+  </section>
+
+  <!-- Monitor de Análisis Técnico -->
+  <section class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
+    <div class="flex justify-between items-center border-b border-slate-800 pb-1.5">
+      <span class="text-[10px] font-bold uppercase text-gray-400"><i class="fa-solid fa-chart-line text-blue-400"></i> Análisis Técnico en Vivo (BTC)</span>
+      <span id="smcSignal" class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-gray-400">ANALIZANDO...</span>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2 text-center text-[10px]">
+      <div class="bg-black/50 p-1.5 rounded border border-slate-800">
+        <p class="text-gray-400">Tendencia (EMA 200)</p>
+        <p id="trendLabel" class="font-bold font-mono text-white">Buscando...</p>
+      </div>
+      <div class="bg-black/50 p-1.5 rounded border border-slate-800">
+        <p id="structureTitle" class="text-gray-400">Estructura SMC</p>
+        <p id="structureLabel" class="font-bold font-mono text-amber-400">Ruptura (BOS)</p>
+      </div>
+      <div class="bg-black/50 p-1.5 rounded border border-slate-800">
+        <p class="text-gray-400">Volatilidad (ATR)</p>
+        <p id="atrLabel" class="font-bold font-mono text-purple-400">14.50 pts</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Billetera Real -->
+  <section class="bg-slate-900 border border-slate-800 rounded-xl p-3 flex justify-between items-center">
+    <div>
+      <span class="text-[10px] text-gray-400 font-bold uppercase">Billetera Cripto (Real)</span>
+      <h3 id="walletBalance" class="text-base font-bold font-mono text-white">$0.00 USDT</h3>
+    </div>
+    <div class="flex gap-1.5">
+      <button id="depBtn" type="button" class="px-3 py-1.5 bg-emerald-600 text-white font-bold text-xs rounded-lg">+ Depositar</button>
+      <button id="witBtn" type="button" class="px-3 py-1.5 bg-slate-800 text-white font-bold text-xs rounded-lg border border-slate-700">- Retirar</button>
+    </div>
+  </section>
+
+  <!-- Panel MT5 -->
+  <section class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-3">
+    <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+      <span class="text-[10px] font-bold uppercase text-gray-400">Ejecución por Mercado (BTCUSD)</span>
+      <span id="accountBadgeLabel" class="text-[9px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 font-mono font-bold">MODO DEMO</span>
+    </div>
+
+    <!-- Controles de Lotaje -->
+    <div class="flex items-center justify-between bg-black/50 rounded-lg p-1.5 border border-slate-800">
+      <button id="lotMinus10" type="button" class="px-2.5 py-1 bg-slate-800 text-gray-300 font-mono text-xs rounded">-0.1</button>
+      <button id="lotMinus1" type="button" class="px-2.5 py-1 bg-slate-800 text-gray-300 font-mono text-xs rounded">-0.01</button>
+      <span id="lotInput" class="text-base font-bold font-mono text-white px-2">0.02</span>
+      <button id="lotPlus1" type="button" class="px-2.5 py-1 bg-slate-800 text-gray-300 font-mono text-xs rounded">+0.01</button>
+      <button id="lotPlus10" type="button" class="px-2.5 py-1 bg-slate-800 text-gray-300 font-mono text-xs rounded">+0.1</button>
+    </div>
+
+    <!-- Precios Bid/Ask -->
+    <div class="grid grid-cols-2 gap-2 text-center">
+      <div class="bg-red-500/10 border border-red-500/30 p-2 rounded-lg">
+        <p class="text-[9px] font-bold text-red-400">SELL (BID)</p>
+        <h4 id="sellPrice" class="text-lg font-bold font-mono text-red-400">85528.37</h4>
+      </div>
+      <div class="bg-emerald-500/10 border border-emerald-500/30 p-2 rounded-lg">
+        <p class="text-[9px] font-bold text-emerald-400">BUY (ASK)</p>
+        <h4 id="buyPrice" class="text-lg font-bold font-mono text-emerald-400">85545.41</h4>
+      </div>
+    </div>
+
+    <!-- Métricas del Bot -->
+    <div class="grid grid-cols-2 gap-2 text
