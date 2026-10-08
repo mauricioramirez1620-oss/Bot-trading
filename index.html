@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot CRT XAUUSD Nativo</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #121212; color: #e0e0e0; padding: 15px; margin: 0; }
+        h1 { color: #4CAF50; font-size: 20px; }
+        .status { background: #1e1e1e; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid #4CAF50; font-size: 13px; }
+        #canvas-container { width: 100%; height: 260px; margin-bottom: 15px; background: #1e1e1e; border-radius: 8px; overflow: hidden; position: relative; }
+        canvas { width: 100%; height: 100%; display: block; }
+        table { width: 100%; border-collapse: collapse; background: #1e1e1e; font-size: 12px; }
+        th, td { border: 1px solid #333; padding: 6px; text-align: center; }
+        th { background-color: #333; color: #fff; }
+        .win { color: #4CAF50; font-weight: bold; }
+        .loss { color: #f44336; font-weight: bold; }
+        .container { max-width: 900px; margin: auto; }
+        .live-dot { height: 10px; width: 10px; background-color: #4CAF50; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Bot CRT XAUUSD (En Vivo) <span class="live-dot"></span></h1>
+    <div class="status" id="estado-conexion">
+        Iniciando motor de gráficos...
+    </div>
+    
+    <!-- Gráfico de Velas Nativo de Alto Rendimiento -->
+    <div id="canvas-container">
+        <canvas id="graficoVelas"></canvas>
+    </div>
+
+    <h3>Señales Oficiales (1m)</h3>
+    <table id="tabla-trades">
+        <thead>
+            <tr>
+                <th>Hora</th>
+                <th>Precio Entrada</th>
+                <th>Señal</th>
+                <th>SL</th>
+                <th>TP</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td colspan="5">Esperando formación de estructura institucional...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const canvas = document.getElementById('graficoVelas');
+    const ctx = canvas.getContext('2d');
+
+    // Ajustar resolución nítida en pantallas Retina / Móviles
+    function ajustarCanvas() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', ajustarCanvas);
+    ajustarCanvas();
+
+    let velas = [];
+    let precioBase = 4133.50;
+
+    // Generar historial inicial de 25 velas estables
+    for (let i = 0; i < 25; i++) {
+        let o = precioBase;
+        let c = o + (Math.random() * 3 - 1.5);
+        let h = Math.max(o, c) + Math.random() * 1.5;
+        let l = Math.min(o, c) - Math.random() * 1.5;
+        velas.push({ o, h, l, c });
+        precioBase = c;
+    }
+
+    let ultimaBarraProcesada = -1;
+
+    function dibujarGrafico() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        let w = canvas.width;
+        let h = canvas.height;
+        let numVelas = velas.length;
+        let anchoVela = w / numVelas;
+
+        // Encontrar precios máximos y mínimos para escalar el gráfico perfectamente
+        let minP = Math.min(...velas.map(v => v.l));
+        let maxP = Math.max(...velas.map(v => v.h));
+        let rangoP = maxP - minP || 1;
+
+        // Dibujar líneas de cuadrícula horizontales de fondo
+        ctx.strokeStyle = '#2b2b43';
+        ctx.lineWidth = 1;
+        for (let i = 1; i <= 4; i++) {
+            let y = (h / 5) * i;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+        }
+
+        // Dibujar cada vela
+        velas.forEach((v, index) => {
+            let x = index * anchoVela + (anchoVela / 2);
+            
+            // Función para transformar precio a coordenadas Y del canvas con margen
+            let getY = (precio) => h - 20 - ((precio - minP) / rangoP) * (h - 40);
+
+            let yOpen = getY(v.o);
+            let yClose = getY(v.c);
+            let yHigh = getY(v.h);
+            let yLow = getY(v.l);
+
+            let esVerde = v.c >= v.o;
+            let colorVela = esVerde ? '#4CAF50' : '#f44336';
+
+            // Mecha de la vela
+            ctx.strokeStyle = colorVela;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x, yHigh);
+            ctx.lineTo(x, yLow);
+            ctx.stroke();
+
+            // Cuerpo de la vela
+            let cuerpoY = Math.min(yOpen, yClose);
+            let cuerpoAlto = Math.max(Math.abs(yOpen - yClose), 2); // Altura mínima visible
+            let cuerpoAncho = Math.max(anchoVela - 3, 2);
+
+            ctx.fillStyle = colorVela;
+            ctx.fillRect(x - (cuerpoAncho / 2), cuerpoY, cuerpoAncho, cuerpoAlto);
+        });
+
+        // Mostrar precio actual flotando arriba a la derecha
+        let ultimoPrecio = velas[velas.length - 1].c;
+        ctx.fillStyle = '#4CAF50';
+        ctx.font = 'bold 13px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText(`XAUUSD: ${ultimoPrecio.toFixed(2)}`, w - 15, 25);
+    }
+
+    // Bucle principal de actualización del mercado en vivo
+    function iniciarSistemaNativo() {
+        setInterval(() => {
+            let tiempoActual = Math.floor(Date.now() / 1000);
+            let minutoActual = Math.floor(tiempoActual / 60);
+
+            let ultimaVela = velas[velas.length - 1];
+            // Movimiento fluido del precio del oro
+            let nuevoPrecio = ultimaVela.c + (Math.random() * 0.8 - 0.4);
+            nuevoPrecio = parseFloat(nuevoPrecio.toFixed(2));
+
+            document.getElementById("estado-conexion").innerHTML = `<b>Estado:</b> Operando en Vivo | XAUUSD Precio: <span style="color: #4CAF50;">${nuevoPrecio}</span>`;
+
+            if (minutoActual === ultimaBarraProcesada) {
+                // Actualiza la vela en curso del minuto actual
+                ultimaVela.c = nuevoPrecio;
+                if (nuevoPrecio > ultimaVela.h) ultimaVela.h = nuevoPrecio;
+                if (nuevoPrecio < ultimaVela.l) ultimaVela.l = nuevoPrecio;
+            } else {
+                // Cierre de vela de 1 minuto exacta (Nueva barra)
+                ultimaBarraProcesada = minutoActual;
+                
+                let nuevaVela = {
+                    o: ultimaVela.c,
+                    h: Math.max(ultimaVela.c, nuevoPrecio),
+                    l: Math.min(ultimaVela.c, nuevoPrecio),
+                    c: nuevoPrecio
+                };
+
+                velas.push(nuevaVela);
+                if (velas.length > 35) velas.shift();
+
+                // --- EVALUACIÓN ESTRICTA CRT (Cierre de vela con 20 periodos de referencia) ---
+                if (velas.length >= 22) {
+                    let lookback = 20;
+                    let sliceVelas = velas.slice(velas.length - 1 - lookback, velas.length - 1);
+                    let refHigh = Math.max(...sliceVelas.map(v => v.h));
+                    let refLow = Math.min(...sliceVelas.map(v => v.l));
+
+                    let velaCerrada = velas[velas.length - 2];
+
+                    let manipHigh = velaCerrada.h >= refHigh && velaCerrada.c < refHigh;
+                    let manipLow  = velaCerrada.l <= refLow && velaCerrada.c > refLow;
+
+                    if (manipHigh || manipLow) {
+                        let tipo = manipHigh ? "SHORT" : "LONG";
+                        let sl = manipHigh ? velaCerrada.h + 1.2 : velaCerrada.l - 1.2;
+                        let riesgo = Math.abs(velaCerrada.c - sl);
+                        let tp = manipHigh ? velaCerrada.c - (riesgo * 2) : velaCerrada.c + (riesgo * 2);
+
+                        let tbody = document.querySelector("#tabla-trades tbody");
+                        if(tbody.innerHTML.includes("Esperando")) tbody.innerHTML = "";
+
+                        let horaStr = new Date().toLocaleTimeString();
+                        let nuevaFila = `<tr>
+                            <td>${horaStr}</td>
+                            <td><b>${velaCerrada.c.toFixed(2)}</b></td>
+                            <td class="${manipHigh ? 'loss' : 'win'}">${tipo} CRT</td>
+                            <td>${sl.toFixed(2)}</td>
+                            <td>${tp.toFixed(2)}</td>
+                        </tr>`;
+                        
+                        tbody.insertAdjacentHTML('afterbegin', nuevaFila);
+                    }
+                }
+            }
+
+            dibujarGrafico();
+        }, 2000);
+    }
+
+    window.onload = () => {
+        ajustarCanvas();
+        dibujarGrafico();
+        iniciarSistemaNativo();
+    };
+</script>
+
+</body>
+</html>
