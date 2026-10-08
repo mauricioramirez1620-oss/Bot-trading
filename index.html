@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot CRT XAUUSD Filtrado</title>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #121212; color: #e0e0e0; padding: 15px; margin: 0; }
+        h1 { color: #4CAF50; font-size: 20px; }
+        .status { background: #1e1e1e; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid #4CAF50; font-size: 13px; }
+        #chart-container { width: 100%; height: 260px; margin-bottom: 15px; background: #1e1e1e; border-radius: 8px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; background: #1e1e1e; font-size: 12px; }
+        th, td { border: 1px solid #333; padding: 6px; text-align: center; }
+        th { background-color: #333; color: #fff; }
+        .win { color: #4CAF50; font-weight: bold; }
+        .loss { color: #f44336; font-weight: bold; }
+        .container { max-width: 900px; margin: auto; }
+        .live-dot { height: 10px; width: 10px; background-color: #4CAF50; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Bot CRT XAUUSD (Filtro Estricto) <span class="live-dot"></span></h1>
+    <div class="status" id="estado-conexion">
+        Esperando estructura limpia de mercado...
+    </div>
+    
+    <div id="chart-container"></div>
+
+    <h3>Señales Válidas (1m)</h3>
+    <table id="tabla-trades">
+        <thead>
+            <tr>
+                <th>Hora</th>
+                <th>Precio Entrada</th>
+                <th>Señal</th>
+                <th>SL</th>
+                <th>TP</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td colspan="5">Buscando configuración limpia...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const chartContainer = document.getElementById('chart-container');
+    const chart = LightweightCharts.createChart(chartContainer, {
+        width: chartContainer.clientWidth,
+        height: 260,
+        layout: { background: { type: 'solid', color: '#1e1e1e' }, textColor: '#d1d4dc' },
+        grid: { vertLines: { color: '#2b2b43' }, horzLines: { color: '#2b2b43' } },
+        timeScale: { timeVisible: true, secondsVisible: true }
+    });
+
+    const candlestickSeries = chart.addCandlestickSeries({
+        upColor: '#4CAF50', downColor: '#f44336', borderVisible: false, wickUpColor: '#4CAF50', wickDownColor: '#f44336'
+    });
+
+    let historialVelas = [];
+    let baseTime = Math.floor(Date.now() / 1000) - (25 * 60); 
+    let lastSignalIndex = -99; // Control de espacio entre señales (Cooldown)
+    const lookback = 20; // Rango de referencia idéntico al de tu indicador (20 velas)
+
+    // Cargar historial inicial con 25 velas para tener base de cálculo
+    let initialData = [];
+    let precioRef = 4133.00;
+    for(let i = 0; i < 25; i++) {
+        let o = precioRef;
+        let c = o + (Math.random() * 4 - 2);
+        let h = Math.max(o, c) + Math.random() * 1.5;
+        let l = Math.min(o, c) - Math.random() * 1.5;
+        initialData.push({ time: baseTime + (i * 60), open: o, high: h, low: l, close: c });
+        historialVelas.push({ h: h, l: l, c: c, o: o });
+        precioRef = c;
+    }
+    candlestickSeries.setData(initialData);
+
+    let currentIndex = 25;
+
+    // Bucle de evaluación por cada nueva vela de 1m simulada
+    setInterval(() => {
+        baseTime += 60;
+        currentIndex++;
+        
+        let ultima = historialVelas[historialVelas.length - 1];
+        let o = ultima.c;
+        let c = o + (Math.random() * 5 - 2.5);
+        let h = Math.max(o, c) + Math.random() * 2.0;
+        let l = Math.min(o, c) - Math.random() * 2.0;
+        
+        let nuevaVela = { time: baseTime, open: o, high: h, low: l, close: c };
+        candlestickSeries.update(nuevaVela);
+
+        historialVelas.push({ h: h, l: l, c: c, o: o });
+        if (historialVelas.length > 50) historialVelas.shift();
+
+        document.getElementById("estado-conexion").innerHTML = `<b>Estado:</b> Monitoreando Rango de 20 Velas | Precio XAUUSD: <span style="color: #4CAF50;">${c.toFixed(2)}</span>`;
+
+        // Verificamos si ya pasó suficiente espacio (al menos 15 velas desde la última señal)
+        let canSignal = (currentIndex - lastSignalIndex) > 15;
+
+        if (historialVelas.length >= lookback + 1 && canSignal) {
+            // Tomamos el rango de referencia de las últimas 20 velas (excluyendo la actual)
+            let sliceVelas = historialVelas.slice(historialVelas.length - 1 - lookback, historialVelas.length - 1);
+            let refHigh = Math.max(...sliceVelas.map(v => v.h));
+            let refLow = Math.min(...sliceVelas.map(v => v.l));
+
+            // Regla estricta de CRT: Barrido de liquidez y cierre adentro
+            let manipHigh = h >= refHigh && c < refHigh;
+            let manipLow  = l <= refLow && c > refLow;
+
+            if (manipHigh || manipLow) {
+                let tipo = manipHigh ? "SHORT" : "LONG";
+                let sl = manipHigh ? h + 1.8 : l - 1.8;
+                let riesgo = Math.abs(c - sl);
+                let tp = manipHigh ? c - (riesgo * 2) : c + (riesgo * 2);
+
+                let tbody = document.querySelector("#tabla-trades tbody");
+                if(tbody.innerHTML.includes("Buscando")) tbody.innerHTML = "";
+
+                let horaActual = new Date().toLocaleTimeString();
+                let nuevaFila = `<tr>
+                    <td>${horaActual}</td>
+                    <td><b>${c.toFixed(2)}</b></td>
+                    <td class="${manipHigh ? 'loss' : 'win'}">${tipo} CRT</td>
+                    <td>${sl.toFixed(2)}</td>
+                    <td>${tp.toFixed(2)}</td>
+                </tr>`;
+                
+                tbody.insertAdjacentHTML('afterbegin', nuevaFila);
+                lastSignalIndex = currentIndex; // Registramos la barra para aplicar el cooldown
+            }
+        }
+    }, 4000); // Evalúa con calma cada par de segundos
+
+    window.addEventListener('resize', () => {
+        chart.applyOptions({ width: chartContainer.clientWidth });
+    });
+</script>
+
+</body>
+</html>
